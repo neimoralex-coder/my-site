@@ -1,26 +1,78 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Clock, Mail, Send, CheckCircle } from 'lucide-react';
+import { MapPin, Phone, Clock, Mail, Send, CheckCircle, ImagePlus } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
 export default function Contact() {
   const { config } = useAdmin();
   const [submitted, setSubmitted] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '', device: '', issue: '' });
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    telegram: '',
+    device: '',
+    issue: '',
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const subject = encodeURIComponent(`Заявка на ремонт — ${formData.device}`);
-    const body = encodeURIComponent(
-      `Имя: ${formData.name}\nТелефон: ${formData.phone}\nУстройство: ${formData.device}\n\nОписание проблемы:\n${formData.issue}`
-    );
-    window.open(`mailto:${config.email}?subject=${subject}&body=${body}`, '_blank');
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handlePhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+
+    if (files.length > 5) {
+      alert('Можно прикрепить не больше 5 фотографий');
+      e.target.value = '';
+      setPhotos([]);
+      return;
+    }
+
+    setPhotos(files);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const payload = new FormData();
+
+    payload.append('name', formData.name);
+    payload.append('phone', formData.phone);
+    payload.append('telegram', formData.telegram);
+    payload.append('device', formData.device);
+    payload.append('problem', formData.issue);
+
+    photos.forEach((photo) => {
+      payload.append('photos', photo);
+    });
+
+    try {
+      const response = await fetch('https://magbook-telegram.neimor-alex.workers.dev', {
+        method: 'POST',
+        body: payload,
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка отправки');
+      }
+
+      setSubmitted(true);
+      setFormData({
+        name: '',
+        phone: '',
+        telegram: '',
+        device: '',
+        issue: '',
+      });
+      setPhotos([]);
+
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (error) {
+      alert('Не удалось отправить заявку. Напишите нам в Telegram или позвоните.');
+    }
   };
 
   const weekdays = config.workSchedule.slice(0, 5);
@@ -29,18 +81,28 @@ export default function Contact() {
 
   const formatRange = (day?: { isOpen: boolean; open: string; close: string }) => {
     if (!day || !day.isOpen) return 'Выходной';
-    return `${day.open} - ${day.close}`;
+    return `${day.open} — ${day.close}`;
   };
 
   const weekdaysText =
-    weekdays.length > 0 && weekdays.every((day) => day.isOpen && day.open === weekdays[0].open && day.close === weekdays[0].close)
+    weekdays.length > 0 &&
+    weekdays.every(
+      (day) =>
+        day.isOpen &&
+        day.open === weekdays[0].open &&
+        day.close === weekdays[0].close
+    )
       ? formatRange(weekdays[0])
       : weekdays.every((day) => !day.isOpen)
         ? 'Выходной'
         : weekdays.map((day) => formatRange(day)).join(', ');
 
   const weekendText =
-    saturday && sunday && saturday.isOpen === sunday.isOpen && saturday.open === sunday.open && saturday.close === sunday.close
+    saturday &&
+    sunday &&
+    saturday.isOpen === sunday.isOpen &&
+    saturday.open === sunday.open &&
+    saturday.close === sunday.close
       ? formatRange(saturday)
       : `Сб: ${formatRange(saturday)} / Вс: ${formatRange(sunday)}`;
 
@@ -56,9 +118,15 @@ export default function Contact() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full mb-4 shadow-sm">
             <Phone className="w-4 h-4 text-accent" />
-            <span className="text-xs font-semibold text-accent uppercase tracking-wider">Контакты</span>
+            <span className="text-xs font-semibold text-accent uppercase tracking-wider">
+              Контакты
+            </span>
           </div>
-          <h2 className="text-3xl lg:text-4xl font-bold text-primary tracking-tight">Запишитесь на ремонт</h2>
+
+          <h2 className="text-3xl lg:text-4xl font-bold text-primary tracking-tight">
+            Запишитесь на ремонт
+          </h2>
+
           <p className="mt-4 text-gray-500 leading-relaxed">
             Оставьте заявку и мы свяжемся с вами в течение 15 минут.
           </p>
@@ -74,21 +142,25 @@ export default function Contact() {
           >
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-primary mb-5">Как нас найти</h3>
+
               <div className="space-y-5">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
                     <MapPin className="w-5 h-5 text-accent" />
                   </div>
+
                   <div>
                     <p className="font-medium text-primary">Адрес</p>
                     <p className="text-sm text-gray-500 mt-0.5">{config.address}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{config.metro}</p>
                   </div>
                 </div>
+
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
                     <Phone className="w-5 h-5 text-accent" />
                   </div>
+
                   <div>
                     <p className="font-medium text-primary">Телефон</p>
                     <a
@@ -99,10 +171,12 @@ export default function Contact() {
                     </a>
                   </div>
                 </div>
+
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
                     <Mail className="w-5 h-5 text-accent" />
                   </div>
+
                   <div>
                     <p className="font-medium text-primary">Email</p>
                     <a
@@ -113,16 +187,16 @@ export default function Contact() {
                     </a>
                   </div>
                 </div>
+
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
                     <Clock className="w-5 h-5 text-accent" />
                   </div>
+
                   <div>
                     <p className="font-medium text-primary">Режим работы</p>
-                    <p className="text-sm text-gray-500">ПН - ПТ</p>
-                    <p className="text-sm text-gray-500">{weekdaysText}</p>
-                    <p className="text-sm text-gray-500 mt-1">Сб - Вс</p>
-                    <p className="text-sm text-gray-500">{weekendText}</p>
+                    <p className="text-sm text-gray-500">Пн - Пт: {weekdaysText}</p>
+                    <p className="text-sm text-gray-500 mt-1">Сб - Вс: {weekendText}</p>
                   </div>
                 </div>
               </div>
@@ -130,9 +204,11 @@ export default function Contact() {
 
             <div className="bg-primary rounded-3xl p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">Срочный ремонт?</h3>
+
               <p className="text-sm text-gray-300 leading-relaxed mb-4">
                 Звоните по телефону и мы примем вас в первую очередь.
               </p>
+
               <a
                 href={`tel:${config.phone.replace(/\s/g, '').replace(/[()-]/g, '')}`}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
@@ -152,6 +228,7 @@ export default function Contact() {
           >
             <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-primary mb-6">Оставить заявку</h3>
+
               {submitted ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -161,14 +238,21 @@ export default function Contact() {
                   <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-4">
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   </div>
-                  <h4 className="text-xl font-semibold text-primary mb-2">Заявка отправлена!</h4>
-                  <p className="text-gray-500">Откроется почтовый клиент для отправки.</p>
+
+                  <h4 className="text-xl font-semibold text-primary mb-2">
+                    Заявка отправлена!
+                  </h4>
+
+                  <p className="text-gray-500">Мы получили заявку и скоро свяжемся с вами.</p>
                 </motion.div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Ваше имя</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ваше имя
+                      </label>
+
                       <input
                         type="text"
                         name="name"
@@ -179,8 +263,12 @@ export default function Contact() {
                         className="w-full px-4 py-3 bg-warm rounded-xl border border-transparent focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10 transition-all text-sm"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Телефон
+                      </label>
+
                       <input
                         type="tel"
                         name="phone"
@@ -192,8 +280,27 @@ export default function Contact() {
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Устройство</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Telegram <span className="text-gray-400">(необязательно)</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      name="telegram"
+                      value={formData.telegram}
+                      onChange={handleChange}
+                      placeholder="@username"
+                      className="w-full px-4 py-3 bg-warm rounded-xl border border-transparent focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10 transition-all text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Устройство
+                    </label>
+
                     <select
                       name="device"
                       value={formData.device}
@@ -209,8 +316,12 @@ export default function Contact() {
                       <option value="Другое">Другое устройство</option>
                     </select>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Описание проблемы</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Описание проблемы
+                    </label>
+
                     <textarea
                       name="issue"
                       value={formData.issue}
@@ -220,15 +331,37 @@ export default function Contact() {
                       className="w-full px-4 py-3 bg-warm rounded-xl border border-transparent focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10 transition-all text-sm resize-none"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Фото устройства <span className="text-gray-400">(до 5 фото)</span>
+                    </label>
+
+                    <label className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-warm rounded-xl border border-dashed border-gray-300 cursor-pointer hover:border-accent transition-colors text-sm text-gray-500">
+                      <ImagePlus className="w-5 h-5" />
+                      {photos.length > 0
+                        ? `Выбрано фото: ${photos.length}`
+                        : 'Прикрепить фотографии'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotosChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white font-medium rounded-xl hover:bg-gray-800 transition-colors"
                   >
                     <Send className="w-4 h-4" />
-                    Отправить заявку на {config.email}
+                    Отправить заявку
                   </button>
+
                   <p className="text-xs text-gray-400 text-center">
-                    Нажимая кнопку, откроется почтовый клиент с заполненным письмом
+                    Нажимая кнопку, вы отправляете заявку в сервисный центр
                   </p>
                 </form>
               )}

@@ -9,6 +9,10 @@ export default defineConfig(async () => {
     // @ts-ignore
     const m = await import('./.vite-source-tags.js');
     plugins.push(m.sourceTags());
-  } catch {}
-  return { plugins };
+   } catch {}
+
+  return {
+    base: '/',
+    plugins
+  };
 })

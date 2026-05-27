@@ -64,15 +64,12 @@ export default function Footer() {
               <li><a href={`tel:${config.phone.replace(/\s/g, '').replace(/[()-]/g, '')}`} className="hover:text-white transition-colors">{config.phone}</a></li>
               <li><a href={`mailto:${config.email}`} className="hover:text-white transition-colors">{config.email}</a></li>
               <li>{config.address}</li>
-              {config.workSchedule.map((day) => (
-                <li key={day.day}>{day.day}: {day.isOpen ? `${day.open} — ${day.close}` : 'закрыто'}</li>
-              ))}
             </ul>
           </div>
         </div>
 
         <div className="pt-8 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">© 2024 {config.siteName}. Все права защищены.</p>
+          <p className="text-xs text-gray-500">© 2026 {config.siteName}. Все права защищены.</p>
           <p className="text-xs text-gray-500">Сервисный центр по ремонту техники Apple</p>
         </div>
       </div>

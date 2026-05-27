@@ -17,7 +17,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/services/:serviceId" element={<ServicePage />} />
           <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/sa8ps4sge702pl" element={<AdminPage />} />
         </Routes>
       </main>
       <Footer />

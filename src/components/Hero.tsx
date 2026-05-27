@@ -40,12 +40,18 @@ export default function Hero() {
                 Записаться на ремонт
                 <ArrowRight className="w-4 h-4" />
               </a>
-              <a
-                href="#pricing"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-primary font-medium rounded-2xl border border-gray-200 hover:border-gray-300 transition-all"
-              >
-                Узнать цены
-              </a>
+              <button
+  type="button"
+  onClick={() => {
+    document.getElementById('pricing')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }}
+  className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-primary font-medium rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+>
+  Узнать цены
+</button>
             </div>
 
             <div className="mt-12 flex flex-wrap gap-6">

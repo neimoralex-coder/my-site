@@ -54,7 +54,7 @@ export default function ServicePage() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <Link
-                  to="/pricing"
+                  to="/#pricing"
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-primary font-medium rounded-2xl border border-gray-200 hover:border-gray-300 transition-all"
                 >
                   Узнать цены

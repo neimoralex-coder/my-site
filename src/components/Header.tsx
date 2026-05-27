@@ -90,6 +90,7 @@ export default function Header() {
             >
               Записаться
             </Link>
+            {/*
             <Link
               to="/admin"
               className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -97,6 +98,7 @@ export default function Header() {
             >
               <Settings className="w-4 h-4 text-gray-600" />
             </Link>
+            */}
           </div>
 
           <button
@@ -142,6 +144,7 @@ export default function Header() {
                 >
                   Записаться на ремонт
                 </Link>
+                {/*
                 <Link
                   to="/admin"
                   onClick={() => setMobileOpen(false)}
@@ -150,6 +153,7 @@ export default function Header() {
                   <Settings className="w-4 h-4" />
                   Админ-панель
                 </Link>
+                */}
               </div>
             </div>
           </motion.div>

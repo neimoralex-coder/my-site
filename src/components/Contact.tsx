@@ -275,7 +275,7 @@ export default function Contact() {
                         value={formData.phone}
                         onChange={handleChange}
                         required
-                        placeholder="+7 (999) 123-45-67"
+                        placeholder="+7 (996) 233-17-04"
                         className="w-full px-4 py-3 bg-warm rounded-xl border border-transparent focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10 transition-all text-sm"
                       />
                     </div>

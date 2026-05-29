@@ -108,10 +108,9 @@ export interface SiteConfig {
 
 export const defaultConfig: SiteConfig = {
   siteName: 'МАГБУК',
-  phone: '+7 (999) 123-45-67',
-  email: 'info@ifix.ru',
-  address: 'г. Москва, ул. Арбат, 15',
-  metro: 'Ст. метро «Смоленская», 5 мин пешком',
+  phone: '+7 (996) 233-17-04',
+  email: 'magbook174@gmail.com',
+  address: 'г. Магнитогорск, пр. Карла Маркса, 155',
   heroTitle: 'Ремонт техники Apple',
   heroSubtitle: 'с гарантией 1 год',
   heroDescription:

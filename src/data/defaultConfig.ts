@@ -107,7 +107,7 @@ export interface SiteConfig {
 }
 
 export const defaultConfig: SiteConfig = {
-  siteName: 'iFix',
+  siteName: 'МАГБУК',
   phone: '+7 (999) 123-45-67',
   email: 'info@ifix.ru',
   address: 'г. Москва, ул. Арбат, 15',

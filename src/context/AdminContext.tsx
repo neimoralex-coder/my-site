@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { defaultConfig, type SiteConfig } from '../data/defaultConfig';
+import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'ifix_site_config';
 const STORAGE_VERSION_KEY = 'ifix_site_config_version';
 const CURRENT_VERSION = '2';
+
+const SUPABASE_TABLE = 'site_config';
+const SUPABASE_CONFIG_ID = 'main';
 
 function mergeWithDefault(stored: unknown): SiteConfig {
   if (!stored || typeof stored !== 'object') return defaultConfig;
@@ -33,7 +37,12 @@ function mergeWithDefault(stored: unknown): SiteConfig {
             ...p,
             repairs: Array.isArray(p.repairs)
               ? p.repairs.map((r: unknown, ri: number) => {
-                  const defaultRepair = defaultPage?.repairs[ri] || { name: '', description: '', priceFrom: '', image: '' };
+                  const defaultRepair = defaultPage?.repairs[ri] || {
+                    name: '',
+                    description: '',
+                    priceFrom: '',
+                    image: '',
+                  };
                   return { ...defaultRepair, ...(r as object) };
                 })
               : defaultPage?.repairs || [],
@@ -46,15 +55,28 @@ function mergeWithDefault(stored: unknown): SiteConfig {
     messengers: Array.isArray(s.messengers) ? s.messengers : defaultConfig.messengers,
     socialLinks: Array.isArray(s.socialLinks) ? s.socialLinks : defaultConfig.socialLinks,
     workSchedule: Array.isArray(s.workSchedule) ? s.workSchedule : defaultConfig.workSchedule,
-    screenReplacement: s.screenReplacement && typeof s.screenReplacement === 'object'
-      ? { ...defaultConfig.screenReplacement, ...(s.screenReplacement as object) }
-      : defaultConfig.screenReplacement,
+    screenReplacement:
+      s.screenReplacement && typeof s.screenReplacement === 'object'
+        ? { ...defaultConfig.screenReplacement, ...(s.screenReplacement as object) }
+        : defaultConfig.screenReplacement,
     whyUsFeatures: Array.isArray(s.whyUsFeatures) ? s.whyUsFeatures : defaultConfig.whyUsFeatures,
     processSteps: Array.isArray(s.processSteps) ? s.processSteps : defaultConfig.processSteps,
     otherServices: Array.isArray(s.otherServices) ? s.otherServices : defaultConfig.otherServices,
   };
 
   return merged;
+}
+
+async function saveConfigToSupabase(config: SiteConfig) {
+  const { error } = await supabase.from(SUPABASE_TABLE).upsert({
+    id: SUPABASE_CONFIG_ID,
+    data: config,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error('Ошибка сохранения конфига в Supabase:', error);
+  }
 }
 
 interface AdminContextType {
@@ -90,31 +112,78 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | null>(null);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const version = localStorage.getItem(STORAGE_VERSION_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (version === CURRENT_VERSION) {
-          return mergeWithDefault(parsed);
-        }
-        // Version mismatch — merge with defaults to fill new fields
-        const merged = mergeWithDefault(parsed);
-        localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
-        return merged;
-      }
-    } catch {
-      // ignore
-    }
-    localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
-    return defaultConfig;
-  });
+  const [config, setConfig] = useState<SiteConfig>(defaultConfig);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
-  }, [config]);
+    async function loadConfig() {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLE)
+        .select('data')
+        .eq('id', SUPABASE_CONFIG_ID)
+        .single();
+
+      if (error) {
+        console.error('Ошибка загрузки конфига из Supabase:', error);
+      }
+
+      const cloudConfig = data?.data;
+
+      if (cloudConfig && typeof cloudConfig === 'object' && Object.keys(cloudConfig).length > 0) {
+        setConfig(mergeWithDefault(cloudConfig));
+        setIsLoaded(true);
+        return;
+      }
+
+      try {
+        const localConfig = localStorage.getItem(STORAGE_KEY);
+        const localVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+
+        if (localConfig) {
+          const parsed = JSON.parse(localConfig);
+          const merged = mergeWithDefault(parsed);
+
+          setConfig(merged);
+          setIsLoaded(true);
+
+          await saveConfigToSupabase(merged);
+
+          if (localVersion !== CURRENT_VERSION) {
+            localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
+          }
+
+          return;
+        }
+      } catch {
+        console.warn('Не удалось перенести старый localStorage конфиг');
+      }
+
+      setConfig(defaultConfig);
+      setIsLoaded(true);
+      await saveConfigToSupabase(defaultConfig);
+    }
+
+    loadConfig();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      saveConfigToSupabase(config);
+    }, 500);
+
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [config, isLoaded]);
 
   const updateConfig = (updates: Partial<SiteConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
@@ -223,7 +292,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const updateServiceRepair = (serviceId: string, repairIndex: number, repair: SiteConfig['servicePages'][0]['repairs'][0]) => {
+  const updateServiceRepair = (
+    serviceId: string,
+    repairIndex: number,
+    repair: SiteConfig['servicePages'][0]['repairs'][0]
+  ) => {
     setConfig((prev) => ({
       ...prev,
       servicePages: prev.servicePages.map((p) =>
@@ -261,7 +334,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const importConfig = (json: string) => {
     try {
       const parsed = JSON.parse(json);
-      setConfig(parsed);
+      setConfig(mergeWithDefault(parsed));
       return true;
     } catch {
       return false;

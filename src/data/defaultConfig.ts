@@ -111,6 +111,7 @@ export const defaultConfig: SiteConfig = {
   phone: '+7 (996) 233-17-04',
   email: 'magbook174@gmail.com',
   address: 'г. Магнитогорск, пр. Карла Маркса, 155',
+  metro: '',
   heroTitle: 'Ремонт техники Apple',
   heroSubtitle: 'с гарантией 1 год',
   heroDescription:

@@ -39,32 +39,84 @@ export default function AdminPage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
   const isFirstConfigRender = useRef(true);
+  const isCancelingChanges = useRef(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSavedConfig, setLastSavedConfig] = useState(config);
 
   useEffect(() => {
-    if (isFirstConfigRender.current) {
-      isFirstConfigRender.current = false;
-      return;
-    }
+  if (isFirstConfigRender.current) {
+    isFirstConfigRender.current = false;
+    setLastSavedConfig(config);
+    return;
+  }
 
-    setSaveError('');
-    setSaveStatus((currentStatus) => (currentStatus === 'saving' ? currentStatus : 'idle'));
-  }, [config]);
+  if (isCancelingChanges.current) {
+    isCancelingChanges.current = false;
+    return;
+  }
+
+  setSaveError('');
+  setHasUnsavedChanges(true);
+
+  setSaveStatus((currentStatus) =>
+    currentStatus === 'saving' ? currentStatus : 'idle'
+  );
+}, [config]);
 
   const handleSave = async () => {
-    try {
-      setSaveStatus('saving');
-      setSaveError('');
+  try {
+    setSaveStatus('saving');
+    setSaveError('');
 
-      await admin.saveConfig();
+    await admin.saveConfig();
 
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Ошибка сохранения:', error);
-      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить изменения.');
-      setSaveStatus('error');
-    }
+    setLastSavedAt(new Date());
+    setLastSavedConfig(config);
+    setHasUnsavedChanges(false);
+    setSaveStatus('success');
+
+    setTimeout(() => {
+      setSaveStatus('idle');
+    }, 2000);
+  } catch (error) {
+    console.error('Ошибка сохранения:', error);
+
+    setSaveError(
+      error instanceof Error
+        ? error.message
+        : 'Не удалось сохранить изменения.'
+    );
+
+    setSaveStatus('error');
+  }
+};
+
+const handleCancelChanges = () => {
+  isCancelingChanges.current = true;
+
+  admin.updateConfig(lastSavedConfig);
+
+  setHasUnsavedChanges(false);
+  setSaveError('');
+  setSaveStatus('idle');
+};
+
+useEffect(() => {
+  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (!hasUnsavedChanges) return;
+
+    event.preventDefault();
+    event.returnValue = 'У вас есть несохранённые изменения.';
+    return 'У вас есть несохранённые изменения.';
   };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+
+  return () => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  };
+}, [hasUnsavedChanges]);
 
   const handleImport = () => {
     const ok = admin.importConfig(importText);
@@ -139,29 +191,66 @@ export default function AdminPage() {
                 {saveError}
               </span>
             )}
-            <button
-              onClick={() => void handleSave()}
-              disabled={saveStatus === 'saving'}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
-                saveStatus === 'success'
-                  ? 'bg-green-600 text-white hover:bg-green-600'
-                  : saveStatus === 'error'
-                    ? 'bg-red-600 text-white hover:bg-red-600'
-                    : 'bg-accent text-white hover:bg-blue-600'
-              }`}
-            >
-              {saveStatus === 'success' ? (
-                <CheckCircle className="w-4 h-4" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {saveStatus === 'idle' && 'Сохранить'}
-              {saveStatus === 'saving' && 'Сохраняем...'}
-              {saveStatus === 'success' && 'Сохранено'}
-              {saveStatus === 'error' && 'Ошибка сохранения'}
-            </button>
+            <div className="flex items-center gap-3 min-h-[44px]">
+  <button
+    type="button"
+    onClick={handleSave}
+    disabled={saveStatus === 'saving'}
+    className={`flex items-center justify-center gap-2 min-w-[150px] h-10 px-5 rounded-full text-sm font-medium transition disabled:opacity-60 ${
+      saveStatus === 'success'
+        ? 'bg-green-600 text-white hover:bg-green-600'
+        : saveStatus === 'error'
+          ? 'bg-red-600 text-white hover:bg-red-600'
+          : 'bg-accent text-white hover:bg-blue-600'
+    }`}
+  >
+    {saveStatus === 'idle' && 'Сохранить'}
+    {saveStatus === 'saving' && 'Сохраняем...'}
+    {saveStatus === 'success' && 'Сохранено ✓'}
+    {saveStatus === 'error' && 'Ошибка сохранения'}
+  </button>
+
+  <button
+    type="button"
+    onClick={handleCancelChanges}
+    disabled={saveStatus === 'saving' || !hasUnsavedChanges}
+    className={`flex items-center justify-center min-w-[170px] h-10 px-5 rounded-full border text-sm font-medium transition ${
+      hasUnsavedChanges
+        ? 'border-gray-400 bg-gray-100 text-gray-800 hover:bg-gray-200'
+        : 'border-transparent bg-transparent text-transparent pointer-events-none'
+    }`}
+  >
+    Отменить изменения
+  </button>
+</div>
           </div>
         </div>
+
+        <div className="mt-4 mb-5 flex flex-wrap items-center gap-3 text-sm">
+  {hasUnsavedChanges ? (
+    <div className="inline-flex items-center gap-2 rounded-full border border-red-300 bg-red-50 px-4 py-2 text-red-700">
+      <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+      <span>Есть несохранённые изменения</span>
+    </div>
+  ) : (
+    <div className="inline-flex items-center gap-2 rounded-full border border-green-300 bg-green-50 px-4 py-2 text-green-700">
+      <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+      <span>Синхронизировано</span>
+    </div>
+  )}
+
+  {lastSavedAt && (
+    <div className="inline-flex items-center rounded-full border border-border bg-muted px-4 py-2 text-muted-foreground">
+      Последнее сохранение: {lastSavedAt.toLocaleString('ru-RU')}
+    </div>
+  )}
+
+  {saveStatus === 'error' && (
+    <div className="inline-flex items-center rounded-full border border-red-300 bg-red-50 px-4 py-2 text-red-700">
+      {saveError || 'Ошибка сохранения'}
+    </div>
+  )}
+</div>
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="lg:w-64 shrink-0">

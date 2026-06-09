@@ -1,6 +1,5 @@
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   ArrowLeft, Save, RotateCcw, Download, Upload, CheckCircle, Globe, Phone, Mail, MapPin,
   Clock, Image, MessageSquare, Star, Wrench, DollarSign, FileText, Shield, Sparkles,
@@ -35,13 +34,36 @@ export default function AdminPage() {
   const admin = useAdmin();
   const { config } = admin;
   const [activeTab, setActiveTab] = useState('general');
-  const [saved, setSaved] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
+  const isFirstConfigRender = useRef(true);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    if (isFirstConfigRender.current) {
+      isFirstConfigRender.current = false;
+      return;
+    }
+
+    setSaveError('');
+    setSaveStatus((currentStatus) => (currentStatus === 'saving' ? currentStatus : 'idle'));
+  }, [config]);
+
+  const handleSave = async () => {
+    try {
+      setSaveStatus('saving');
+      setSaveError('');
+
+      await admin.saveConfig();
+
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Ошибка сохранения:', error);
+      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить изменения.');
+      setSaveStatus('error');
+    }
   };
 
   const handleImport = () => {
@@ -112,22 +134,31 @@ export default function AdminPage() {
             <h1 className="text-2xl font-bold text-primary">Админ-панель</h1>
           </div>
           <div className="flex items-center gap-3">
-            {saved && (
-              <motion.div
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2 text-green-600 text-sm font-medium"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Сохранено
-              </motion.div>
+            {saveStatus === 'error' && saveError && (
+              <span className="hidden sm:inline text-xs font-medium text-red-500 max-w-xs text-right">
+                {saveError}
+              </span>
             )}
             <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors"
+              onClick={() => void handleSave()}
+              disabled={saveStatus === 'saving'}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+                saveStatus === 'success'
+                  ? 'bg-green-600 text-white hover:bg-green-600'
+                  : saveStatus === 'error'
+                    ? 'bg-red-600 text-white hover:bg-red-600'
+                    : 'bg-accent text-white hover:bg-blue-600'
+              }`}
             >
-              <Save className="w-4 h-4" />
-              Сохранить
+              {saveStatus === 'success' ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {saveStatus === 'idle' && 'Сохранить'}
+              {saveStatus === 'saving' && 'Сохраняем...'}
+              {saveStatus === 'success' && 'Сохранено'}
+              {saveStatus === 'error' && 'Ошибка сохранения'}
             </button>
           </div>
         </div>

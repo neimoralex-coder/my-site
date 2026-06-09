@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { defaultConfig, type SiteConfig } from '../data/defaultConfig';
 import { supabase } from '../lib/supabase';
 
@@ -76,6 +76,7 @@ async function saveConfigToSupabase(config: SiteConfig) {
 
   if (error) {
     console.error('Ошибка сохранения конфига в Supabase:', error);
+    throw error;
   }
 }
 
@@ -107,6 +108,7 @@ interface AdminContextType {
   resetToDefault: () => void;
   exportConfig: () => string;
   importConfig: (json: string) => boolean;
+  saveConfig: () => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType | null>(null);
@@ -114,7 +116,6 @@ const AdminContext = createContext<AdminContextType | null>(null);
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SiteConfig>(defaultConfig);
   const [isLoaded, setIsLoaded] = useState(false);
-  const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     async function loadConfig() {
@@ -147,8 +148,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           setConfig(merged);
           setIsLoaded(true);
 
-          await saveConfigToSupabase(merged);
-
           if (localVersion !== CURRENT_VERSION) {
             localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
           }
@@ -160,30 +159,17 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       }
 
       setConfig(defaultConfig);
-      setIsLoaded(true);
-      await saveConfigToSupabase(defaultConfig);
+      setIsLoaded(true); 
     }
 
     loadConfig();
   }, []);
 
-  useEffect(() => {
+
+  const saveConfig = async () => {
     if (!isLoaded) return;
-
-    if (saveTimerRef.current) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-
-    saveTimerRef.current = window.setTimeout(() => {
-      saveConfigToSupabase(config);
-    }, 500);
-
-    return () => {
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [config, isLoaded]);
+    await saveConfigToSupabase(config);
+  };
 
   const updateConfig = (updates: Partial<SiteConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
@@ -371,6 +357,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         resetToDefault,
         exportConfig,
         importConfig,
+        saveConfig,
       }}
     >
       {children}

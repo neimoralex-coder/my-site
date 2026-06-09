@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Settings } from 'lucide-react';
+import { Menu, X, Phone, Settings, Laptop } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdmin } from '../context/AdminContext';
 
@@ -57,7 +57,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">i</span>
+               <Laptop className="w-5 h-5 text-white" />
             </div>
             <span className="font-semibold text-lg tracking-tight text-primary">{config.siteName}</span>
           </Link>
